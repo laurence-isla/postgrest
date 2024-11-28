@@ -23,6 +23,7 @@ module PostgREST.Query.SqlFragment
   , pgFmtOrderTerm
   , pgFmtSelectItem
   , pgFmtSpreadSelectItem
+  , pgFmtSpreadJoinSelectItem
   , fromJsonBodyF
   , responseHeadersF
   , responseStatusF
@@ -271,14 +272,9 @@ pgFmtSelectItem :: QualifiedIdentifier -> CoercibleSelectField -> SQL.Snippet
 pgFmtSelectItem table CoercibleSelectField{csField=fld, csAggFunction=agg, csAggCast=aggCast, csCast=cast, csAlias=alias} =
   pgFmtApplyAggregate agg aggCast (pgFmtApplyCast cast (pgFmtTableCoerce table fld)) <> pgFmtAs alias
 
-pgFmtSpreadSelectItem :: Bool -> Alias -> [CoercibleOrderTerm] -> SpreadSelectField -> SQL.Snippet
-pgFmtSpreadSelectItem applyToManySpr aggAlias order SpreadSelectField{ssSelName, ssSelAggFunction, ssSelAggCast, ssSelAlias}
-  | applyToManySpr = pgFmtApplyToManySpreadAgg ssSelAggFunction ssSelAggCast aggAlias order fullSelName <> " AS " <> pgFmtIdent (fromMaybe ssSelName ssSelAlias)
-  | otherwise = pgFmtApplyAggregate ssSelAggFunction ssSelAggCast fullSelName <> pgFmtAs ssSelAlias
-  where
-    fullSelName = case ssSelName of
-      "*" -> pgFmtIdent aggAlias <> ".*"
-      _   -> pgFmtIdent aggAlias <> "." <> pgFmtIdent ssSelName
+pgFmtSpreadSelectItem :: Alias -> SpreadSelectField -> SQL.Snippet
+pgFmtSpreadSelectItem aggAlias SpreadSelectField{ssSelName, ssSelAggFunction, ssSelAggCast, ssSelAlias} =
+  pgFmtApplyAggregate ssSelAggFunction ssSelAggCast (pgFmtFullSelName aggAlias ssSelName) <> pgFmtAs ssSelAlias
 
 pgFmtApplyAggregate :: Maybe AggregateFunction -> Maybe Cast -> SQL.Snippet -> SQL.Snippet
 pgFmtApplyAggregate Nothing _ snippet = snippet
@@ -290,11 +286,13 @@ pgFmtApplyAggregate (Just agg) aggCast snippet =
     convertAggFunction = SQL.sql . BS.map toUpper . BS.pack . show
     aggregatedSnippet = convertAggFunction agg <> "(" <> snippet <> ")"
 
-pgFmtApplyToManySpreadAgg :: Maybe AggregateFunction -> Maybe Cast -> Alias -> [CoercibleOrderTerm] -> SQL.Snippet -> SQL.Snippet
-pgFmtApplyToManySpreadAgg Nothing aggCast relAggAlias order snippet =
-  "COALESCE(json_agg(" <> pgFmtApplyCast aggCast snippet <> orderF (QualifiedIdentifier "" relAggAlias) order <> "),'[]')::jsonb"
-pgFmtApplyToManySpreadAgg agg aggCast _ _ snippet =
-  pgFmtApplyAggregate agg aggCast snippet
+pgFmtSpreadJoinSelectItem :: Alias -> [CoercibleOrderTerm] -> SpreadSelectField -> SQL.Snippet
+pgFmtSpreadJoinSelectItem aggAlias order SpreadSelectField{ssSelName, ssSelAlias} =
+  "COALESCE(json_agg(" <> fmtField <> " " <> fmtOrder <> "),'[]')::jsonb" <> " AS " <> fmtAlias
+  where
+    fmtField = pgFmtFullSelName aggAlias ssSelName
+    fmtOrder = orderF (QualifiedIdentifier "" aggAlias) order
+    fmtAlias = pgFmtIdent (fromMaybe ssSelName ssSelAlias)
 
 pgFmtApplyCast :: Maybe Cast -> SQL.Snippet -> SQL.Snippet
 pgFmtApplyCast Nothing snippet = snippet
@@ -302,6 +300,11 @@ pgFmtApplyCast Nothing snippet = snippet
 -- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
 -- Not quoting should be fine, we validate the input on Parsers.
 pgFmtApplyCast (Just cast) snippet = "CAST( " <> snippet <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )"
+
+pgFmtFullSelName :: Alias -> FieldName -> SQL.Snippet
+pgFmtFullSelName aggAlias fieldName = case fieldName of
+  "*" -> pgFmtIdent aggAlias <> ".*"
+  _   -> pgFmtIdent aggAlias <> "." <> pgFmtIdent fieldName
 
 -- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
 fromJsonBodyF :: Maybe LBS.ByteString -> [CoercibleField] -> Bool -> Bool -> Bool -> SQL.Snippet

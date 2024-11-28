@@ -512,8 +512,19 @@ disallowed =
         { matchStatus = 400
         , matchHeaders = [matchContentTypeJson] }
 
-    it "prevents the use of aggregates on spread embeds" $
+    it "prevents the use of aggregates on to-one spread embeds" $
       get "/project_invoices?select=...projects(id.count())" `shouldRespondWith`
+        [json|{
+          "hint":null,
+          "details":null,
+          "code":"PGRST123",
+          "message":"Use of aggregate functions is not allowed"
+        }|]
+        { matchStatus = 400
+        , matchHeaders = [matchContentTypeJson] }
+
+    it "prevents the use of aggregates on to-many spread embeds" $
+      get "/factories?select=...processes(id.count())" `shouldRespondWith`
         [json|{
           "hint":null,
           "details":null,

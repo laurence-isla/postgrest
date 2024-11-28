@@ -81,7 +81,7 @@ getJoinSelects (Node ReadPlan{relSelect} _) =
           JsonEmbed{rsSelName, rsEmbedMode = JsonArray} ->
             Just $ "COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> pgFmtIdent rsSelName
           Spread{rsSpreadSel, rsAggAlias} ->
-            Just $ intercalateSnippet ", " (pgFmtSpreadSelectItem False rsAggAlias mempty <$> rsSpreadSel)
+            Just $ intercalateSnippet ", " (pgFmtSpreadSelectItem rsAggAlias <$> rsSpreadSel)
 
 getJoins :: ReadPlanTree -> [SQL.Snippet]
 getJoins (Node _ []) = []
@@ -99,8 +99,8 @@ getJoin fld node@(Node ReadPlan{order, relJoinType, relSpread} _) =
       (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> al <> " ON " <> cond
     subquery = readPlanToQuery node
     aggAlias = pgFmtIdent $ rsAggAlias fld
-    selectJsonArray = "SELECT json_agg(" <> aggAlias <> ")::jsonb AS " <> aggAlias
-    wrapSubqAlias = " FROM (" <> subquery <> " ) AS " <> aggAlias
+    selectSubqAgg = "SELECT json_agg(" <> aggAlias <> ")::jsonb AS " <> aggAlias
+    fromSubqAgg = " FROM (" <> subquery <> " ) AS " <> aggAlias
     joinCondition = if relJoinType == Just JTInner then aggAlias <> " IS NOT NULL" else "TRUE"
   in
     case fld of
@@ -108,13 +108,12 @@ getJoin fld node@(Node ReadPlan{order, relJoinType, relSpread} _) =
         correlatedSubquery subquery aggAlias "TRUE"
       Spread{rsSpreadSel, rsAggAlias} ->
         if relSpread == Just ToManySpread then
-          let
-            selection = selectJsonArray <> (if null rsSpreadSel then mempty else ", ") <> intercalateSnippet ", " (pgFmtSpreadSelectItem True rsAggAlias order <$> rsSpreadSel)
-          in correlatedSubquery (selection <> wrapSubqAlias) aggAlias joinCondition
+          let selSpread = selectSubqAgg <> (if null rsSpreadSel then mempty else ", ") <> intercalateSnippet ", " (pgFmtSpreadJoinSelectItem rsAggAlias order <$> rsSpreadSel)
+          in correlatedSubquery (selSpread <> fromSubqAgg) aggAlias joinCondition
         else
           correlatedSubquery subquery aggAlias "TRUE"
       JsonEmbed{rsEmbedMode = JsonArray} ->
-       correlatedSubquery (selectJsonArray <> wrapSubqAlias) aggAlias joinCondition
+        correlatedSubquery (selectSubqAgg <> fromSubqAgg) aggAlias joinCondition
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
 mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings _ applyDefaults) =
