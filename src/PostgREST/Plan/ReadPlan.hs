@@ -12,7 +12,8 @@ import PostgREST.ApiRequest.Types         (Alias, Depth, Hint,
 import PostgREST.Plan.Types               (CoercibleLogicTree,
                                            CoercibleOrderTerm,
                                            CoercibleSelectField (..),
-                                           RelSelectField (..))
+                                           RelSelectField (..),
+                                           SpreadType (..))
 import PostgREST.RangeQuery               (NonnegRange)
 import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier)
@@ -27,9 +28,6 @@ data JoinCondition =
   JoinCondition
     (QualifiedIdentifier, FieldName)
     (QualifiedIdentifier, FieldName)
-  deriving (Eq, Show)
-
-data SpreadType = ToOneSpread | ToManySpread
   deriving (Eq, Show)
 
 data ReadPlan = ReadPlan

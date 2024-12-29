@@ -931,11 +931,11 @@ INSERT INTO process_supervisor VALUES (5, 3);
 INSERT INTO process_supervisor VALUES (6, 3);
 
 TRUNCATE TABLE operators CASCADE;
-INSERT INTO operators VALUES (1, 'Anne');
-INSERT INTO operators VALUES (2, 'Louis');
-INSERT INTO operators VALUES (3, 'Jeff');
-INSERT INTO operators VALUES (4, 'Liz');
-INSERT INTO operators VALUES (5, 'Alfred');
+INSERT INTO operators VALUES (1, 'Anne', '{"id": "543210", "afk": true}');
+INSERT INTO operators VALUES (2, 'Louis', '{"id": "012345"}');
+INSERT INTO operators VALUES (3, 'Jeff', '{"id": "666666", "afk": true}');
+INSERT INTO operators VALUES (4, 'Liz', '{"id": "999999"}');
+INSERT INTO operators VALUES (5, 'Alfred', '{"id": "000000"}');
 
 TRUNCATE TABLE process_operator CASCADE;
 INSERT INTO process_operator VALUES (1,1);
@@ -951,12 +951,12 @@ INSERT INTO process_operator VALUES (6,5);
 INSERT INTO process_operator VALUES (7,5);
 
 TRUNCATE TABLE factory_buildings CASCADE;
-INSERT INTO factory_buildings VALUES (1, 'A001', 150, 'A', 1);
-INSERT INTO factory_buildings VALUES (2, 'A002', 200, 'A', 1);
-INSERT INTO factory_buildings VALUES (3, 'B001', 50, 'B', 2);
-INSERT INTO factory_buildings VALUES (4, 'B002', 120, 'C', 2);
-INSERT INTO factory_buildings VALUES (5, 'C001', 240, 'B', 3);
-INSERT INTO factory_buildings VALUES (6, 'D001', 310, 'A', 4);
+INSERT INTO factory_buildings VALUES (1, 'A001', 150, 'A', 1, '{"ins": "2024C", "pending": true}');
+INSERT INTO factory_buildings VALUES (2, 'A002', 200, 'A', 1, '{"ins": "2025A", "pending": true}');
+INSERT INTO factory_buildings VALUES (3, 'B001', 50, 'B', 2, '{"ins": "2025A", "pending": true}');
+INSERT INTO factory_buildings VALUES (4, 'B002', 120, 'C', 2, '{"ins": "2023A"}');
+INSERT INTO factory_buildings VALUES (5, 'C001', 240, 'B', 3, '{"ins": "2022B"}' );
+INSERT INTO factory_buildings VALUES (6, 'D001', 310, 'A', 4, '{"ins": "2024C", "pending": true}');
 
 TRUNCATE TABLE surr_serial_upsert CASCADE;
 INSERT INTO surr_serial_upsert(name, extra) VALUES ('value', 'existing value');

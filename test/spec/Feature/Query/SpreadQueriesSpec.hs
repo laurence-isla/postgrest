@@ -290,7 +290,7 @@ spec =
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
-      it "orders ALL the resulting arrays according to the specified order in the spread relationship" $
+      it "orders all the resulting arrays according to the spread relationship ordering columns" $ do
         get "/factories?select=factory:name,...processes(*)&processes.order=category_id.asc,name.desc&order=name" `shouldRespondWith`
           [json|[
             {"factory":"Factory A","id":[1, 2],"name":["Process A1", "Process A2"],"factory_id":[1, 1],"category_id":[1, 2]},
@@ -298,6 +298,38 @@ spec =
             {"factory":"Factory C","id":[8, 7, 6, 5],"name":["Process YY", "Process XX", "Process C2", "Process C1"],"factory_id":[3, 3, 3, 3],"category_id":[2, 2, 2, 2]},
             {"factory":"Factory D","id":[],"name":[],"factory_id":[],"category_id":[]}
           ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/factories?select=factory:name,...factory_buildings(*)&factory_buildings.order=inspections->pending.asc.nullsfirst,inspections->ins.desc&order=name" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory A","id":[2, 1],"code":["A002", "A001"],"size":[200, 150],"type":["A", "A"],"factory_id":[1, 1],"inspections":[{"ins": "2025A", "pending": true}, {"ins": "2024C", "pending": true}]},
+            {"factory":"Factory B","id":[4, 3],"code":["B002", "B001"],"size":[120, 50],"type":["C", "B"],"factory_id":[2, 2],"inspections":[{"ins": "2023A"}, {"ins": "2025A", "pending": true}]},
+            {"factory":"Factory C","id":[5],"code":["C001"],"size":[240],"type":["B"],"factory_id":[3],"inspections":[{"ins": "2022B"}]},
+            {"factory":"Factory D","id":[6],"code":["D001"],"size":[310],"type":["A"],"factory_id":[4],"inspections":[{"ins": "2024C", "pending": true}]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "orders all the resulting arrays according to the spread relationship ordering columns even if they aren't selected" $
+        get "/factories?select=factory:name,...processes(name)&processes.order=category_id.asc,name.desc&order=name" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory A","name":["Process A1", "Process A2"]},
+            {"factory":"Factory B","name":["Process B2", "Process B1"]},
+            {"factory":"Factory C","name":["Process YY", "Process XX", "Process C2", "Process C1"]},
+            {"factory":"Factory D","name":[]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "orders all the resulting arrays according to the related ordering columns in the spread relationship" $
+        get "/factories?select=factory:name,...processes(name,...process_costs(cost))&processes.order=process_costs(cost)&order=name" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory A","name":["Process A1", "Process A2"],"cost":[150.00, 200.00]},
+            {"factory":"Factory B","name":["Process B2", "Process B1"],"cost":[70.00, 180.00]},
+            {"factory":"Factory C","name":["Process C1", "Process YY", "Process C2", "Process XX"],"cost":[40.00, 40.00, 70.00, null]},
+            {"factory":"Factory D","name":[],"cost":[]}
+           ]|]
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
@@ -518,7 +550,7 @@ spec =
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
-      it "orders ALL the resulting arrays according to the specified order in the spread relationship" $
+      it "orders all the resulting arrays according to the spread relationship ordering columns" $ do
         get "/supervisors?select=supervisor:name,...processes(*)&processes.order=category_id.asc,name.desc&order=name" `shouldRespondWith`
           [json|[
             {"supervisor":"Jane","id":[],"name":[],"factory_id":[],"category_id":[]},
@@ -526,6 +558,44 @@ spec =
             {"supervisor":"Mary","id":[4, 1],"name":["Process B2", "Process A1"],"factory_id":[2, 1],"category_id":[1, 1]},
             {"supervisor":"Peter","id":[3, 6, 5],"name":["Process B1", "Process C2", "Process C1"],"factory_id":[2, 3, 3],"category_id":[1, 2, 2]},
             {"supervisor":"Sarah","id":[3],"name":["Process B1"],"factory_id":[2],"category_id":[1]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/processes?select=process:name,...operators(*)&operators.order=status->afk.asc.nullsfirst,status->id.desc&order=name" `shouldRespondWith`
+          [json|[
+            {"process":"Process A1","id":[2, 1],"name":["Louis", "Anne"],"status":[{"id": "012345"}, {"id": "543210", "afk": true}]},
+            {"process":"Process A2","id":[2, 3, 1],"name":["Louis", "Jeff", "Anne"],"status":[{"id": "012345"}, {"id": "666666", "afk": true}, {"id": "543210", "afk": true}]},
+            {"process":"Process B1","id":[3],"name":["Jeff"],"status":[{"id": "666666", "afk": true}]},
+            {"process":"Process B2","id":[3, 1],"name":["Jeff", "Anne"],"status":[{"id": "666666", "afk": true}, {"id": "543210", "afk": true}]},
+            {"process":"Process C1","id":[],"name":[],"status":[]},
+            {"process":"Process C2","id":[5, 3],"name":["Alfred", "Jeff"],"status":[{"id": "000000"}, {"id": "666666", "afk": true}]},
+            {"process":"Process XX","id":[5],"name":["Alfred"],"status":[{"id": "000000"}]},
+            {"process":"Process YY","id":[],"name":[],"status":[]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "orders all the resulting arrays according to the spread relationship ordering columns even if they aren't selected" $
+        get "/supervisors?select=supervisor:name,...processes(name)&processes.order=category_id.asc,name.desc&order=name" `shouldRespondWith`
+          [json|[
+            {"supervisor":"Jane","name":[]},
+            {"supervisor":"John","name":["Process B2", "Process A2"]},
+            {"supervisor":"Mary","name":["Process B2", "Process A1"]},
+            {"supervisor":"Peter","name":["Process B1", "Process C2", "Process C1"]},
+            {"supervisor":"Sarah","name":["Process B1"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "orders all the resulting arrays according to the related ordering columns in the spread relationship" $
+        get "/supervisors?select=supervisor:name,...processes(name,...process_costs(cost))&processes.order=process_costs(cost)&order=name" `shouldRespondWith`
+          [json|[
+            {"supervisor":"Jane","name":[],"cost":[]},
+            {"supervisor":"John","name":["Process B2", "Process A2"],"cost":[70.00, 200.00]},
+            {"supervisor":"Mary","name":["Process B2", "Process A1"],"cost":[70.00, 150.00]},
+            {"supervisor":"Peter","name":["Process C1", "Process C2", "Process B1"],"cost":[40.00, 70.00, 180.00]},
+            {"supervisor":"Sarah","name":["Process B1"],"cost":[180.00]}
           ]|]
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]

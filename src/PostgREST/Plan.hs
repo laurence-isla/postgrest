@@ -330,6 +330,7 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregate
     mapLeft ApiRequestError $
     treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
     hoistSpreadAggFunctions =<<
+    addToManySpreadOrderSelects =<<
     validateAggFunctions configDbAggregates =<<
     addRelSelects =<<
     addNullEmbedFilters =<<
@@ -429,7 +430,7 @@ expandStars ctx rPlanTree = Right $ expandStarsForReadPlan False rPlanTree
     expandStarsForReadPlan :: Bool -> ReadPlanTree -> ReadPlanTree
     expandStarsForReadPlan hasAgg (Node rp@ReadPlan{select, from=fromQI, fromAlias=alias, relSpread=spread} children) =
       let
-        newHasAgg = hasAgg || any (isJust . csAggFunction) select || spread == Just ToManySpread
+        newHasAgg = hasAgg || any (isJust . csAggFunction) select || case spread of Just ToManySpread{} -> True; _ -> False
         newCtx = adjustContext ctx fromQI alias
         newRPlan = expandStarsForTable newCtx newHasAgg rp
       in Node newRPlan (map (expandStarsForReadPlan newHasAgg) children)
@@ -485,7 +486,7 @@ addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,re
         newReadPlan = (\r ->
           let newAlias = Just (qiName (relForeignTable r) <> "_" <> show depth)
               aggAlias = qiName (relTable r) <> "_" <> fromMaybe relName relAlias <> "_" <> show depth
-              updSpread = if isJust relSpread && not (relIsToOne r) then Just ToManySpread else relSpread in
+              updSpread = if isJust relSpread && not (relIsToOne r) then Just $ ToManySpread [] [] else relSpread in
           case r of
             Relationship{relCardinality=M2M _} -> -- m2m does internal implicit joins that don't need aliasing
               rPlan{from=relForeignTable r, relToParent=Just r, relAggAlias=aggAlias, relJoinConds=getJoinConditions Nothing parentAlias r, relSpread=updSpread}
@@ -747,6 +748,29 @@ hoistIntoRelSelectFields aggList r@(Spread {rsSpreadSel = spreadSelects, rsAggAl
                     ssSelAlias       = fldAlias }
             Nothing -> s
 hoistIntoRelSelectFields _ r = r
+
+-- | Handle ordering in a To-Many Spread Relationship
+-- In case of a To-Many Spread, it removes the ordering done in the ReadPlan and moves it to the SpreadType.
+-- We also select the ordering columns and alias them to avoid collisions. This is because it would be impossible
+-- to order once it's aggregated if it's not selected in the inner query beforehand.
+addToManySpreadOrderSelects :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addToManySpreadOrderSelects (Node rp@ReadPlan { order, relAggAlias, relSpread = Just ToManySpread {}} forest) =
+  Node rp { order = [], relSpread = newRelSpread } <$> addToManySpreadOrderSelects `traverse` forest
+  where
+    newRelSpread = Just ToManySpread { stExtraSelect = addSprExtraSelects, stOrder = addSprOrder}
+    (addSprExtraSelects, addSprOrder) = unzip $ zipWith ordToExtraSelsAndSprOrds [1..] order
+    ordToExtraSelsAndSprOrds i = \case
+      CoercibleOrderTerm fld dir ordr -> (
+          (Nothing, CoercibleSelectField fld Nothing Nothing Nothing (Just $ selOrdAlias (cfName fld) i)),
+          CoercibleOrderTerm (unknownField (selOrdAlias (cfName fld) i) []) dir ordr
+        )
+      CoercibleOrderRelationTerm rel (fld,jp) dir ordr -> (
+          (Just rel, CoercibleSelectField (unknownField fld jp) Nothing Nothing Nothing (Just $ selOrdAlias fld i)),
+          CoercibleOrderTerm (unknownField (selOrdAlias fld i) []) dir ordr
+        )
+    selOrdAlias :: Alias -> Integer -> Alias
+    selOrdAlias name i = relAggAlias <> "_" <> name <> "_" <> show i -- add index to avoid collisions in aliases
+addToManySpreadOrderSelects (Node rp forest) = Node rp <$> addToManySpreadOrderSelects `traverse` forest
 
 validateAggFunctions :: Bool -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 validateAggFunctions aggFunctionsAllowed (Node rp@ReadPlan {select} forest)

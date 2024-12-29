@@ -3802,7 +3802,8 @@ create table surr_gen_default_upsert (
 
 create table operators (
   id int primary key,
-  name text
+  name text,
+  status jsonb
 );
 
 create table process_operator (
@@ -3816,5 +3817,6 @@ create table factory_buildings (
   code char(4),
   size numeric,
   "type" char(1),
-  factory_id int references factories(id)
+  factory_id int references factories(id),
+  inspections jsonb
 );

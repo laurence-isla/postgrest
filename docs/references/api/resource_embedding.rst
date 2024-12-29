@@ -1270,5 +1270,3 @@ You can still order all the resulting arrays explicitly. For example, to order b
        ]
      }
    ]
-
-Note that the field must be selected in the spread relationship for the order to work.
