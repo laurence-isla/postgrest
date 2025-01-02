@@ -329,8 +329,8 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregate
   in
     mapLeft ApiRequestError $
     treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
-    hoistSpreadAggFunctions =<<
     addToManySpreadOrderSelects =<<
+    hoistSpreadAggFunctions =<<
     validateAggFunctions configDbAggregates =<<
     addRelSelects =<<
     addNullEmbedFilters =<<
@@ -749,15 +749,22 @@ hoistIntoRelSelectFields aggList r@(Spread {rsSpreadSel = spreadSelects, rsAggAl
             Nothing -> s
 hoistIntoRelSelectFields _ r = r
 
--- | Handle ordering in a To-Many Spread Relationship
--- In case of a To-Many Spread, it removes the ordering done in the ReadPlan and moves it to the SpreadType.
--- We also select the ordering columns and alias them to avoid collisions. This is because it would be impossible
--- to order once it's aggregated if it's not selected in the inner query beforehand.
+-- | Handle aggregates and ordering in a To-Many Spread Relationship
+-- It does the following in case of a To-Many Spread
+-- * When only aggregates are selected (no column to group by), it's always expected to return a single row.
+--   That's why we treat these cases as a To-One Spread and they won't be wrapped in an array.
+-- * It removes the ordering done in the ReadPlan and moves it to the SpreadType.
+--   We also select the ordering columns and alias them to avoid collisions. This is because it would be impossible
+--   to order once it's aggregated if it's not selected in the inner query beforehand.
 addToManySpreadOrderSelects :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
-addToManySpreadOrderSelects (Node rp@ReadPlan { order, relAggAlias, relSpread = Just ToManySpread {}} forest) =
-  Node rp { order = [], relSpread = newRelSpread } <$> addToManySpreadOrderSelects `traverse` forest
+addToManySpreadOrderSelects (Node rp@ReadPlan{order, select, relAggAlias, relSelect, relSpread = Just ToManySpread {}} forest) =
+  Node rp { order = newOrder, relSpread = newRelSpread } <$> addToManySpreadOrderSelects `traverse` forest
   where
-    newRelSpread = Just ToManySpread { stExtraSelect = addSprExtraSelects, stOrder = addSprOrder}
+    (newOrder, newRelSpread)
+      | allAggsSel && allAggsRelSel = (order, Just ToOneSpread)
+      | otherwise = ([], Just ToManySpread { stExtraSelect = addSprExtraSelects, stOrder = addSprOrder})
+    allAggsSel = all (isJust . csAggFunction) select
+    allAggsRelSel = all (\case Spread sels _ -> all (isJust . ssSelAggFunction) sels; _ -> False) relSelect
     (addSprExtraSelects, addSprOrder) = unzip $ zipWith ordToExtraSelsAndSprOrds [1..] order
     ordToExtraSelsAndSprOrds i = \case
       CoercibleOrderTerm fld dir ordr -> (

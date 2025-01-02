@@ -306,69 +306,77 @@ allowed =
         it "supports the use of aggregates without grouping by any fields" $ do
           get "/factories?select=name,...factory_buildings(size.sum())" `shouldRespondWith`
             [json|[
-              {"name":"Factory A","sum":[350]},
-              {"name":"Factory B","sum":[170]},
-              {"name":"Factory C","sum":[240]},
-              {"name":"Factory D","sum":[310]}]|]
+              {"name":"Factory A","sum":350},
+              {"name":"Factory B","sum":170},
+              {"name":"Factory C","sum":240},
+              {"name":"Factory D","sum":310}]|]
             { matchHeaders = [matchContentTypeJson] }
         it "supports many aggregates at the same time" $ do
           get "/factories?select=name,...factory_buildings(size.min(),size.max(),size.sum())" `shouldRespondWith`
             [json|[
-              {"name":"Factory A","min":[150],"max":[200],"sum":[350]},
-              {"name":"Factory B","min":[50],"max":[120],"sum":[170]},
-              {"name":"Factory C","min":[240],"max":[240],"sum":[240]},
-              {"name":"Factory D","min":[310],"max":[310],"sum":[310]}]|]
+              {"name":"Factory A","min":150,"max":200,"sum":350},
+              {"name":"Factory B","min":50,"max":120,"sum":170},
+              {"name":"Factory C","min":240,"max":240,"sum":240},
+              {"name":"Factory D","min":310,"max":310,"sum":310}]|]
             { matchHeaders = [matchContentTypeJson] }
         it "supports aggregates inside nested to-one spread relationships" $ do
           get "/supervisors?select=name,...processes(...process_costs(cost.sum()))&order=name" `shouldRespondWith`
             [json|[
-              {"name":"Jane","sum":[null]},
-              {"name":"John","sum":[270.00]},
-              {"name":"Mary","sum":[220.00]},
-              {"name":"Peter","sum":[290.00]},
-              {"name":"Sarah","sum":[180.00]}]|]
+              {"name":"Jane","sum":null},
+              {"name":"John","sum":270.00},
+              {"name":"Mary","sum":220.00},
+              {"name":"Peter","sum":290.00},
+              {"name":"Sarah","sum":180.00}]|]
             { matchHeaders = [matchContentTypeJson] }
           get "/supervisors?select=supervisor:name,...processes(...process_costs(cost_sum:cost.sum()))&order=name" `shouldRespondWith`
             [json|[
-              {"supervisor":"Jane","cost_sum":[null]},
-              {"supervisor":"John","cost_sum":[270.00]},
-              {"supervisor":"Mary","cost_sum":[220.00]},
-              {"supervisor":"Peter","cost_sum":[290.00]},
-              {"supervisor":"Sarah","cost_sum":[180.00]}]|]
+              {"supervisor":"Jane","cost_sum":null},
+              {"supervisor":"John","cost_sum":270.00},
+              {"supervisor":"Mary","cost_sum":220.00},
+              {"supervisor":"Peter","cost_sum":290.00},
+              {"supervisor":"Sarah","cost_sum":180.00}]|]
             { matchHeaders = [matchContentTypeJson] }
         it "supports aggregates alongside the aggregates nested in to-one spread relationships" $ do
           get "/supervisors?select=name,...processes(id.count(),...process_costs(cost.sum()))&order=name" `shouldRespondWith`
             [json|[
-              {"name":"Jane","count":[0],"sum":[null]},
-              {"name":"John","count":[2],"sum":[270.00]},
-              {"name":"Mary","count":[2],"sum":[220.00]},
-              {"name":"Peter","count":[3],"sum":[290.00]},
-              {"name":"Sarah","count":[1],"sum":[180.00]}]|]
+              {"name":"Jane","count":0,"sum":null},
+              {"name":"John","count":2,"sum":270.00},
+              {"name":"Mary","count":2,"sum":220.00},
+              {"name":"Peter","count":3,"sum":290.00},
+              {"name":"Sarah","count":1,"sum":180.00}]|]
             { matchHeaders = [matchContentTypeJson] }
           get "/supervisors?select=supervisor:name,...processes(process_count:count(),...process_costs(cost_sum:cost.sum()))&order=name" `shouldRespondWith`
             [json|[
-              {"supervisor":"Jane","process_count":[0],"cost_sum":[null]},
-              {"supervisor":"John","process_count":[2],"cost_sum":[270.00]},
-              {"supervisor":"Mary","process_count":[2],"cost_sum":[220.00]},
-              {"supervisor":"Peter","process_count":[3],"cost_sum":[290.00]},
-              {"supervisor":"Sarah","process_count":[1],"cost_sum":[180.00]}]|]
+              {"supervisor":"Jane","process_count":0,"cost_sum":null},
+              {"supervisor":"John","process_count":2,"cost_sum":270.00},
+              {"supervisor":"Mary","process_count":2,"cost_sum":220.00},
+              {"supervisor":"Peter","process_count":3,"cost_sum":290.00},
+              {"supervisor":"Sarah","process_count":1,"cost_sum":180.00}]|]
             { matchHeaders = [matchContentTypeJson] }
         it "supports aggregates on nested relationships" $ do
           get "/operators?select=name,...processes(id,...factories(...factory_buildings(size.sum())))&order=name" `shouldRespondWith`
             [json|[
-              {"name":"Alfred","id":[6, 7],"sum":[[240], [240]]},
-              {"name":"Anne","id":[1, 2, 4],"sum":[[350], [350], [170]]},
-              {"name":"Jeff","id":[2, 3, 4, 6],"sum":[[350], [170], [170], [240]]},
+              {"name":"Alfred","id":[6, 7],"sum":[240, 240]},
+              {"name":"Anne","id":[1, 2, 4],"sum":[350, 350, 170]},
+              {"name":"Jeff","id":[2, 3, 4, 6],"sum":[350, 170, 170, 240]},
               {"name":"Liz","id":[],"sum":[]},
-              {"name":"Louis","id":[1, 2],"sum":[[350], [350]]}]|]
+              {"name":"Louis","id":[1, 2],"sum":[350, 350]}]|]
             { matchHeaders = [matchContentTypeJson] }
           get "/operators?select=name,...processes(process_id:id,...factories(...factory_buildings(factory_building_size_sum:size.sum())))&order=name" `shouldRespondWith`
             [json|[
-              {"name":"Alfred","process_id":[6, 7],"factory_building_size_sum":[[240], [240]]},
-              {"name":"Anne","process_id":[1, 2, 4],"factory_building_size_sum":[[350], [350], [170]]},
-              {"name":"Jeff","process_id":[2, 3, 4, 6],"factory_building_size_sum":[[350], [170], [170], [240]]},
+              {"name":"Alfred","process_id":[6, 7],"factory_building_size_sum":[240, 240]},
+              {"name":"Anne","process_id":[1, 2, 4],"factory_building_size_sum":[350, 350, 170]},
+              {"name":"Jeff","process_id":[2, 3, 4, 6],"factory_building_size_sum":[350, 170, 170, 240]},
               {"name":"Liz","process_id":[],"factory_building_size_sum":[]},
-              {"name":"Louis","process_id":[1, 2],"factory_building_size_sum":[[350], [350]]}]|]
+              {"name":"Louis","process_id":[1, 2],"factory_building_size_sum":[350, 350]}]|]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/operators?select=name,...processes(process_id:id,...factories(...factory_buildings(factory_building_size_sum:size.sum())))&processes.order=id.desc&order=name" `shouldRespondWith`
+            [json|[
+              {"name":"Alfred","process_id":[7, 6],"factory_building_size_sum":[240, 240]},
+              {"name":"Anne","process_id":[4, 2, 1],"factory_building_size_sum":[170, 350, 350]},
+              {"name":"Jeff","process_id":[6, 4, 3, 2],"factory_building_size_sum":[240, 170, 170, 350]},
+              {"name":"Liz","process_id":[],"factory_building_size_sum":[]},
+              {"name":"Louis","process_id":[2, 1],"factory_building_size_sum":[350, 350]}]|]
             { matchHeaders = [matchContentTypeJson] }
 
         context "supports count() aggregate without specifying a field" $ do
@@ -376,17 +384,17 @@ allowed =
             it "works by itself in the embedded resource" $ do
               get "/factories?select=name,...processes(count())&order=name" `shouldRespondWith`
                 [json|[
-                  {"name":"Factory A","count":[2]},
-                  {"name":"Factory B","count":[2]},
-                  {"name":"Factory C","count":[4]},
-                  {"name":"Factory D","count":[0]}]|]
+                  {"name":"Factory A","count":2},
+                  {"name":"Factory B","count":2},
+                  {"name":"Factory C","count":4},
+                  {"name":"Factory D","count":0}]|]
                 { matchHeaders = [matchContentTypeJson] }
               get "/factories?select=factory:name,...processes(processes_count:count())&order=name" `shouldRespondWith`
                 [json|[
-                  {"factory":"Factory A","processes_count":[2]},
-                  {"factory":"Factory B","processes_count":[2]},
-                  {"factory":"Factory C","processes_count":[4]},
-                  {"factory":"Factory D","processes_count":[0]}]|]
+                  {"factory":"Factory A","processes_count":2},
+                  {"factory":"Factory B","processes_count":2},
+                  {"factory":"Factory C","processes_count":4},
+                  {"factory":"Factory D","processes_count":0}]|]
                 { matchHeaders = [matchContentTypeJson] }
             it "works alongside other columns in the embedded resource" $ do
               get "/factories?select=name,...processes(category_id,count())&order=name" `shouldRespondWith`
@@ -413,16 +421,23 @@ allowed =
             it "works on nested resources" $ do
               get "/factories?select=id,...processes(name,...process_supervisor(count()))&order=id" `shouldRespondWith`
                 [json|[
-                  {"id":1,"name":["Process A1", "Process A2"],"count":[[1], [1]]},
-                  {"id":2,"name":["Process B1", "Process B2"],"count":[[2], [2]]},
-                  {"id":3,"name":["Process C1", "Process C2", "Process XX", "Process YY"],"count":[[1], [1], [0], [0]]},
+                  {"id":1,"name":["Process A1", "Process A2"],"count":[1, 1]},
+                  {"id":2,"name":["Process B1", "Process B2"],"count":[2, 2]},
+                  {"id":3,"name":["Process C1", "Process C2", "Process XX", "Process YY"],"count":[1, 1, 0, 0]},
                   {"id":4,"name":[],"count":[]}]|]
                 { matchHeaders = [matchContentTypeJson] }
               get "/factories?select=id,...processes(process:name,...process_supervisor(ps_count:count()))&order=id" `shouldRespondWith`
                 [json|[
-                  {"id":1,"process":["Process A1", "Process A2"],"ps_count":[[1], [1]]},
-                  {"id":2,"process":["Process B1", "Process B2"],"ps_count":[[2], [2]]},
-                  {"id":3,"process":["Process C1", "Process C2", "Process XX", "Process YY"],"ps_count":[[1], [1], [0], [0]]},
+                  {"id":1,"process":["Process A1", "Process A2"],"ps_count":[1, 1]},
+                  {"id":2,"process":["Process B1", "Process B2"],"ps_count":[2, 2]},
+                  {"id":3,"process":["Process C1", "Process C2", "Process XX", "Process YY"],"ps_count":[1, 1, 0, 0]},
+                  {"id":4,"process":[],"ps_count":[]}]|]
+                { matchHeaders = [matchContentTypeJson] }
+              get "/factories?select=id,...processes(process:name,...process_supervisor(ps_count:count()))&processes.order=name.desc&order=id" `shouldRespondWith`
+                [json|[
+                  {"id":1,"process":["Process A2", "Process A1"],"ps_count":[1, 1]},
+                  {"id":2,"process":["Process B2", "Process B1"],"ps_count":[2, 2]},
+                  {"id":3,"process":["Process YY", "Process XX", "Process C2", "Process C1"],"ps_count":[0, 0, 1, 1]},
                   {"id":4,"process":[],"ps_count":[]}]|]
                 { matchHeaders = [matchContentTypeJson] }
 
@@ -430,19 +445,19 @@ allowed =
             it "works by itself in the embedded resource" $ do
               get "/supervisors?select=name,...processes(count())&order=name" `shouldRespondWith`
                 [json|[
-                  {"name":"Jane","count":[0]},
-                  {"name":"John","count":[2]},
-                  {"name":"Mary","count":[2]},
-                  {"name":"Peter","count":[3]},
-                  {"name":"Sarah","count":[1]}]|]
+                  {"name":"Jane","count":0},
+                  {"name":"John","count":2},
+                  {"name":"Mary","count":2},
+                  {"name":"Peter","count":3},
+                  {"name":"Sarah","count":1}]|]
                 { matchHeaders = [matchContentTypeJson] }
               get "/supervisors?select=supervisor:name,...processes(processes_count:count())&order=name" `shouldRespondWith`
                 [json|[
-                  {"supervisor":"Jane","processes_count":[0]},
-                  {"supervisor":"John","processes_count":[2]},
-                  {"supervisor":"Mary","processes_count":[2]},
-                  {"supervisor":"Peter","processes_count":[3]},
-                  {"supervisor":"Sarah","processes_count":[1]}]|]
+                  {"supervisor":"Jane","processes_count":0},
+                  {"supervisor":"John","processes_count":2},
+                  {"supervisor":"Mary","processes_count":2},
+                  {"supervisor":"Peter","processes_count":3},
+                  {"supervisor":"Sarah","processes_count":1}]|]
                 { matchHeaders = [matchContentTypeJson] }
             it "works alongside other columns in the embedded resource" $ do
               get "/supervisors?select=name,...processes(category_id,count())&order=name" `shouldRespondWith`
@@ -472,18 +487,26 @@ allowed =
             it "works on nested resources" $ do
               get "/supervisors?select=id,...processes(name,...operators(count()))&order=id" `shouldRespondWith`
                 [json|[
-                  {"id":1,"name":["Process A1", "Process B2"],"count":[[2], [2]]},
-                  {"id":2,"name":["Process A2", "Process B2"],"count":[[3], [2]]},
-                  {"id":3,"name":["Process B1", "Process C1", "Process C2"],"count":[[1], [0], [2]]},
-                  {"id":4,"name":["Process B1"],"count":[[1]]},
+                  {"id":1,"name":["Process A1", "Process B2"],"count":[2, 2]},
+                  {"id":2,"name":["Process A2", "Process B2"],"count":[3, 2]},
+                  {"id":3,"name":["Process B1", "Process C1", "Process C2"],"count":[1, 0, 2]},
+                  {"id":4,"name":["Process B1"],"count":[1]},
                   {"id":5,"name":[],"count":[]}]|]
                 { matchHeaders = [matchContentTypeJson] }
               get "/supervisors?select=supervisor:id,...processes(processes:name,...operators(operators_count:count()))&order=id" `shouldRespondWith`
                 [json|[
-                  {"supervisor":1,"processes":["Process A1", "Process B2"],"operators_count":[[2], [2]]},
-                  {"supervisor":2,"processes":["Process A2", "Process B2"],"operators_count":[[3], [2]]},
-                  {"supervisor":3,"processes":["Process B1", "Process C1", "Process C2"],"operators_count":[[1], [0], [2]]},
-                  {"supervisor":4,"processes":["Process B1"],"operators_count":[[1]]},
+                  {"supervisor":1,"processes":["Process A1", "Process B2"],"operators_count":[2, 2]},
+                  {"supervisor":2,"processes":["Process A2", "Process B2"],"operators_count":[3, 2]},
+                  {"supervisor":3,"processes":["Process B1", "Process C1", "Process C2"],"operators_count":[1, 0, 2]},
+                  {"supervisor":4,"processes":["Process B1"],"operators_count":[1]},
+                  {"supervisor":5,"processes":[],"operators_count":[]}]|]
+                { matchHeaders = [matchContentTypeJson] }
+              get "/supervisors?select=supervisor:id,...processes(processes:name,...operators(operators_count:count()))&processes.order=name.desc&order=id" `shouldRespondWith`
+                [json|[
+                  {"supervisor":1,"processes":["Process B2", "Process A1"],"operators_count":[2, 2]},
+                  {"supervisor":2,"processes":["Process B2", "Process A2"],"operators_count":[2, 3]},
+                  {"supervisor":3,"processes":["Process C2", "Process C1", "Process B1"],"operators_count":[2, 0, 1]},
+                  {"supervisor":4,"processes":["Process B1"],"operators_count":[1]},
                   {"supervisor":5,"processes":[],"operators_count":[]}]|]
                 { matchHeaders = [matchContentTypeJson] }
 

@@ -318,3 +318,28 @@ For example:
       "order_date": ["2023-09-01", "2023-09-03"]
     }
   ]
+
+However, there is an exception. If only aggregates are selected, i. e. if there is no other columns to group by, then we can always expect a single row to be returned.
+So, we don't wrap the single result in an array and show it directly.
+For example, if we do not group by the ``order_date`` anymore:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/customers?select=name,city,state,...orders(amount.sum())"
+
+.. code-block:: json
+
+  [
+    {
+      "name": "Customer A",
+      "city": "New York",
+      "state": "NY",
+      "sum": 1120.95
+    },
+    {
+      "name": "Customer B",
+      "city": "Los Angeles",
+      "state": "CA",
+      "sum": 755.58
+    }
+  ]
