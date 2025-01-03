@@ -440,6 +440,23 @@ allowed =
                   {"id":3,"process":["Process YY", "Process XX", "Process C2", "Process C1"],"ps_count":[0, 0, 1, 1]},
                   {"id":4,"process":[],"ps_count":[]}]|]
                 { matchHeaders = [matchContentTypeJson] }
+            it "works alongside to-one spread columns in the embedded resource" $
+              get "/factories?select=factory:name,...processes(process_count:count(),...process_categories(category:name))&order=name" `shouldRespondWith`
+                [json|[
+                  {"factory":"Factory A","process_count":[1, 1],"category":["Batch", "Mass"]},
+                  {"factory":"Factory B","process_count":[2],"category":["Batch"]},
+                  {"factory":"Factory C","process_count":[4],"category":["Mass"]},
+                  {"factory":"Factory D","process_count":[],"category":[]}]|]
+                { matchHeaders = [matchContentTypeJson] }
+            it "works alongside non-spread embedded resources" $
+              get "/factories?select=factory:name,...processes(process_count:count(),process_categories(category:name))&order=name" `shouldRespondWith`
+                [json|[
+                  {"factory":"Factory A","process_count":[1, 1],"process_categories":[{"category": "Batch"}, {"category": "Mass"}]},
+                  {"factory":"Factory B","process_count":[2],"process_categories":[{"category": "Batch"}]},
+                  {"factory":"Factory C","process_count":[4],"process_categories":[{"category": "Mass"}]},
+                  {"factory":"Factory D","process_count":[],"process_categories":[]}]|]
+                { matchHeaders = [matchContentTypeJson] }
+
 
           context "many-to-many" $ do
             it "works by itself in the embedded resource" $ do
@@ -508,6 +525,24 @@ allowed =
                   {"supervisor":3,"processes":["Process C2", "Process C1", "Process B1"],"operators_count":[2, 0, 1]},
                   {"supervisor":4,"processes":["Process B1"],"operators_count":[1]},
                   {"supervisor":5,"processes":[],"operators_count":[]}]|]
+                { matchHeaders = [matchContentTypeJson] }
+            it "works alongside to-one spread columns in the embedded resource" $ do
+              get "/supervisors?select=supervisor:name,...processes(process_count:count(),...process_categories(name))&order=name" `shouldRespondWith`
+                [json|[
+                  {"supervisor":"Jane","process_count":[],"name":[]},
+                  {"supervisor":"John","process_count":[1, 1],"name":["Batch", "Mass"]},
+                  {"supervisor":"Mary","process_count":[2],"name":["Batch"]},
+                  {"supervisor":"Peter","process_count":[1, 2],"name":["Batch", "Mass"]},
+                  {"supervisor":"Sarah","process_count":[1],"name":["Batch"]}]|]
+                { matchHeaders = [matchContentTypeJson] }
+            it "works alongside non-spread embedded resources" $
+              get "/supervisors?select=supervisor:name,...processes(process_count:count(),process_categories(name))&order=name" `shouldRespondWith`
+                [json|[
+                  {"supervisor":"Jane","process_count":[],"process_categories":[]},
+                  {"supervisor":"John","process_count":[1, 1],"process_categories":[{"name": "Batch"}, {"name": "Mass"}]},
+                  {"supervisor":"Mary","process_count":[2],"process_categories":[{"name": "Batch"}]},
+                  {"supervisor":"Peter","process_count":[1, 2],"process_categories":[{"name": "Batch"}, {"name": "Mass"}]},
+                  {"supervisor":"Sarah","process_count":[1],"process_categories":[{"name": "Batch"}]}]|]
                 { matchHeaders = [matchContentTypeJson] }
 
 disallowed :: SpecWith ((), Application)
