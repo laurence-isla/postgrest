@@ -220,7 +220,7 @@ data Operation
   | In ListVal
   | Is IsVal
   | IsDistinctFrom SingleVal
-  | Fts FtsOperator (Maybe Language) SingleVal
+  | Fts FtsOperator (Maybe Language) Bool SingleVal
   deriving (Eq, Show)
 
 type Language = Text

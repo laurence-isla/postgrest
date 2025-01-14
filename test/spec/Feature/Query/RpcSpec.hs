@@ -962,6 +962,31 @@ spec =
         get "/rpc/get_tsearch?text_search_vector=wfts.impossible" `shouldRespondWith`
           [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
           { matchHeaders = [matchContentTypeJson] }
+      it "should work with filters that use the fts operator with totsv modifier" $ do
+        get "/rpc/get_tsearch_to_tsvector?select=text_search&text_search=totsv.fts(english).impossible" `shouldRespondWith`
+          [json|[
+            {"text_search":"It's kind of fun to do the impossible"},
+            {"text_search":"C'est un peu amusant de faire l'impossible"}]
+          |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_tsearch_to_tsvector?select=text_search&text_search=totsv.plfts.impossible" `shouldRespondWith`
+          [json|[
+            {"text_search":"It's kind of fun to do the impossible"},
+            {"text_search":"C'est un peu amusant de faire l'impossible"}]
+          |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_tsearch_to_tsvector?select=text_search&text_search=not.totsv.fts(english).fun%7Crat" `shouldRespondWith`
+          [json|[
+            {"text_search":"C'est un peu amusant de faire l'impossible"},
+            {"text_search":"Es ist eine Art Spaß, das Unmögliche zu machen"}]
+          |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_tsearch_to_tsvector?select=text_search&text_search=totsv.wfts.impossible" `shouldRespondWith`
+          [json|[
+            {"text_search":"It's kind of fun to do the impossible"},
+            {"text_search":"C'est un peu amusant de faire l'impossible"}]
+          |]
+          { matchHeaders = [matchContentTypeJson] }
 
       it "should work with the phraseto_tsquery function" $
         get "/rpc/get_tsearch?text_search_vector=phfts(english).impossible" `shouldRespondWith`

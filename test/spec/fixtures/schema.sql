@@ -3799,3 +3799,12 @@ create table surr_gen_default_upsert (
   name text,
   extra text
 );
+
+create table tsearch_to_tsvector (
+  text_search text,
+  jsonb_search jsonb
+);
+
+create function test.get_tsearch_to_tsvector() returns setof test.tsearch_to_tsvector AS $$
+  SELECT * FROM test.tsearch_to_tsvector;
+$$ language sql;

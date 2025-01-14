@@ -370,7 +370,7 @@ pgFmtArrayLiteralForField values _ = unknownLiteral (pgBuildArrayLiteral values)
 pgFmtFilter :: QualifiedIdentifier -> CoercibleFilter -> SQL.Snippet
 pgFmtFilter _ (CoercibleFilterNullEmbed hasNot fld) = pgFmtIdent fld <> " IS " <> (if not hasNot then "NOT " else mempty) <> "DISTINCT FROM NULL"
 pgFmtFilter _ (CoercibleFilter _ (NoOpExpr _)) = mempty -- TODO unreachable because NoOpExpr is filtered on QueryParams
-pgFmtFilter table (CoercibleFilter fld (OpExpr hasNot oper)) = notOp <> " " <> pgFmtField table fld <> case oper of
+pgFmtFilter table (CoercibleFilter fld (OpExpr hasNot oper)) = notOp <> " " <> pgFmtFieldOper <> case oper of
    Op op val  -> " " <> simpleOperator op <> " " <> pgFmtUnknownLiteralForField (unknownLiteral val) fld
 
    OpQuant op quant val -> " " <> quantOperator op <> " " <> case op of
@@ -399,8 +399,11 @@ pgFmtFilter table (CoercibleFilter fld (OpExpr hasNot oper)) = notOp <> " " <> p
       [""] -> "= ANY('{}') "
       _    -> "= ANY (" <> pgFmtArrayLiteralForField vals fld <> ") "
 
-   Fts op lang val -> " " <> ftsOperator op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
+   Fts op lang _ val -> " " <> ftsOperator op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
  where
+   pgFmtFieldOper = case oper of
+     Fts _ lang True _ -> "to_tsvector(" <> ftsLang lang <> pgFmtField table fld <> ")"
+     _                 -> pgFmtField table fld
    ftsLang = maybe mempty (\l -> unknownLiteral l <> ", ")
    notOp = if hasNot then "NOT" else mempty
    star c = if c == '*' then '%' else c

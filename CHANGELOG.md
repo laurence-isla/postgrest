@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3727, Log maximum pool size - @steve-chavez
  - #1536, Add string comparison feature for jwt-role-claim-key - @taimoorzaeem
  - #3747, Allow `not_null` value for the `is` operator - @taimoorzaeem
+ - #2255, Add `totsv` modifier to `fts` operators to explicitly apply `to_tsvector()` to the filtered column, e.g. `?col=totsv.fts(simple).val` - @laurenceisla
 
 ### Fixed
 

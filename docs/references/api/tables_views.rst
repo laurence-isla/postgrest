@@ -78,6 +78,7 @@ fts           :code:`@@`                :ref:`fts` using to_tsquery
 plfts         :code:`@@`                :ref:`fts` using plainto_tsquery
 phfts         :code:`@@`                :ref:`fts` using phraseto_tsquery
 wfts          :code:`@@`                :ref:`fts` using websearch_to_tsquery
+totsv         :code:`to_tsvector()`     :ref:`fts` modifier that converts the filtered column to :code:`tsvector`
 cs            :code:`@>`                contains e.g. :code:`?tags=cs.{example, new}`
 cd            :code:`<@`                contained in e.g. :code:`?values=cd.{1,2,3}`
 ov            :code:`&&`                overlap (have points in common), e.g. :code:`?period=ov.[2017-01-01,2017-06-30]` –
@@ -193,7 +194,16 @@ The :code:`fts` filter mentioned above has a number of options to support flexib
 
   curl "http://localhost:3000/tsearch?my_tsv=not.wfts(french).amusant"
 
-Using `websearch_to_tsquery` requires PostgreSQL of version at least 11.0 and will raise an error in earlier versions of the database.
+For other column types like ``text`` or ``json``, you may want to explicitly convert these columns using ``to_tsvector()``, specially when a language is specified.
+To do so, use the ``totsv`` modifier:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/tsearch?text_column=totsv.fts(french).amusant"
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/tsearch?json_column=not.totsv.phfts(english).The%20Fat%20Cats"
 
 .. _v_filter:
 

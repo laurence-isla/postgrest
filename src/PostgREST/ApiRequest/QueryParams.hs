@@ -660,13 +660,15 @@ pOpExpr pSVal = do
           <?> "isVal: (null, not_null, true, false, unknown)"
 
     pFts = do
+      toTsVector <- try (string "totsv" *> pDelimiter $> True) <|> pure False
+
       op <-  try (string "fts"   $> FilterFts)
          <|> try (string "plfts" $> FilterFtsPlain)
          <|> try (string "phfts" $> FilterFtsPhrase)
          <|> try (string "wfts"  $> FilterFtsWebsearch)
 
       lang <- optionMaybe $ try (between (char '(') (char ')') pIdentifier)
-      pDelimiter >> Fts op (toS <$> lang) <$> pSVal
+      pDelimiter >> Fts op (toS <$> lang) toTsVector <$> pSVal
 
     -- case insensitive char and string
     ciChar :: Char -> GenParser Char state Char

@@ -90,6 +90,17 @@ spec =
               {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
               {"text_search_vector": "'art':4 'spass':5 'unmog':7"}
             ]|] { matchHeaders = [matchContentTypeJson] }
+        it "can handle fts with totsv modifier" $ do
+          get "/grandchild_entities?or=(jsonb_col.totsv.fts.bar,jsonb_col.totsv.fts.foo)&select=jsonb_col" `shouldRespondWith`
+            [json|[
+              { "jsonb_col": {"a": {"b":"foo"}} },
+              { "jsonb_col": {"b":"bar"} }]
+            |] { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?and=(text_search.not.totsv.plfts(german).Art%20Spass, text_search.not.totsv.plfts(french).amusant%20impossible, text_search.not.totsv.fts(english).impossible)&select=text_search" `shouldRespondWith`
+            [json|[
+              { "text_search": "But also fun to do what is possible" },
+              { "text_search": "Fat cats ate rats" }]
+            |] { matchHeaders = [matchContentTypeJson] }
         it "can handle isdistinct" $
           get "/entities?and=(id.gte.2,arr.isdistinct.{1,2})&select=id" `shouldRespondWith`
             [json|[{ "id": 3 }, { "id": 4 }]|] { matchHeaders = [matchContentTypeJson] }
