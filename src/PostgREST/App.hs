@@ -57,6 +57,7 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.List             as L
 import qualified Network.HTTP.Types    as HTTP
 import qualified Network.Socket        as NS
+import           PostgREST.Query       (Query (dqSQL))
 import           Protolude             hiding (Handler)
 import           System.TimeIt         (timeItT)
 
@@ -143,11 +144,27 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
   body <- lift $ Wai.strictRequestBody req
 
   let jwtTime = if configServerTimingEnabled then Auth.getJwtDur req else Nothing
+  let observer = AppState.getObserver appState
 
   (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf req body sCache
   (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
-  (queryTime, queryResult)           <- withTiming $ Query.runQuery appState conf authResult apiReq plan sCache pgVer (Just authRole /= configDbAnonRole)
-  (respTime, resp)                   <- withTiming $ liftEither $ Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
+
+  let query = Query.buildQuery conf authResult apiReq plan sCache pgVer
+
+  (queryTime, queryResult)    <- withTiming $ do
+    case query of
+      Query.NoDbQuery r -> pure r
+      Query.DbQuery{..} -> do
+        dbRes <- lift $ AppState.usePool appState (dqTransaction dqIsoLevel dqTxMode $ runExceptT dqDbHandler)
+        let res = mapLeft Error.PgErr $ mapLeft (Error.PgError (Just authRole /= configDbAnonRole)) dbRes
+        when (isLeft res && configLogQuery) $ lift $ observer (DBQueryRun dqSQL)
+        liftEither =<< liftEither res
+  (respTime, resp)                   <- withTiming $ do
+    let  res = Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
+    when configLogQuery $ case query of
+       Query.DbQuery{..} -> lift $ observer (DBQueryRun dqSQL)
+       _                 -> pure ()
+    liftEither res
 
   return $ toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp
 

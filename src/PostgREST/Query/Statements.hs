@@ -13,6 +13,7 @@ module PostgREST.Query.Statements
   , prepareCall
   , preparePlanRows
   , ResultSet (..)
+  , PreparedStatement (..)
   ) where
 
 import qualified Data.Aeson.Lens                   as L
@@ -54,12 +55,19 @@ data ResultSet
   }
   | RSPlan BS.ByteString -- ^ the plan of the query
 
+data PreparedStatement =
+  PreparedStatement {
+    psResultSet  :: SQL.Statement () ResultSet
+  , psCountQuery :: SQL.Snippet
+  , psSQLQuery   :: ByteString
+  }
 
 prepareWrite :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> MediaType -> MediaHandler ->
-                Maybe PreferRepresentation -> Maybe PreferResolution -> [Text] -> Bool -> SQL.Statement () ResultSet
-prepareWrite selectQuery mutateQuery isInsert isPut mt handler rep resolution pKeys =
-  SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
+                Maybe PreferRepresentation -> Maybe PreferResolution -> [Text] -> Bool -> PreparedStatement
+prepareWrite selectQuery mutateQuery isInsert isPut mt handler rep resolution pKeys prepared =
+ PreparedStatement resultSet mempty sqlQuery
  where
+  resultSet@(SQL.Statement sqlQuery _ _ _) = SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt prepared
   checkUpsert snip = if isInsert && (isPut || resolution == Just MergeDuplicates) then snip else "''"
   pgrstInsertedF = checkUpsert "nullif(current_setting('pgrst.inserted', true),'')::int"
   snippet =
@@ -93,10 +101,11 @@ prepareWrite selectQuery mutateQuery isInsert isPut mt handler rep resolution pK
     MTVndPlan{} -> planRow
     _           -> fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow False)
 
-prepareRead :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> MediaHandler -> Bool -> SQL.Statement () ResultSet
-prepareRead selectQuery countQuery countTotal mt handler =
-  SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
+prepareRead :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> MediaHandler -> Bool -> PreparedStatement
+prepareRead selectQuery countQuery countTotal mt handler prepared =
+ PreparedStatement resultSet countQuery sqlQuery
  where
+  resultSet@(SQL.Statement sqlQuery _ _ _) = SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt prepared
   snippet =
     "WITH " <> sourceCTE <> " AS ( " <> selectQuery <> " ) " <>
     countCTEF <> " " <>
@@ -117,11 +126,11 @@ prepareRead selectQuery countQuery countTotal mt handler =
     _           -> HD.singleRow $ standardRow True
 
 prepareCall :: Routine -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
-               MediaType -> MediaHandler -> Bool ->
-               SQL.Statement () ResultSet
-prepareCall rout callProcQuery selectQuery countQuery countTotal mt handler =
-  SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
+               MediaType -> MediaHandler -> Bool -> PreparedStatement
+prepareCall rout callProcQuery selectQuery countQuery countTotal mt handler prepared =
+   PreparedStatement resultSet countQuery sqlQuery
   where
+    resultSet@(SQL.Statement sqlQuery _ _ _) = SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt prepared
     snippet =
       "WITH " <> sourceCTE <> " AS (" <> callProcQuery <> ") " <>
       countCTEF <>

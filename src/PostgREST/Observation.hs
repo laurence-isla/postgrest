@@ -46,6 +46,8 @@ data Observation
   | DBListenRetry Int
   | DBListenerGotSCacheMsg ByteString
   | DBListenerGotConfigMsg ByteString
+  | DBQueryRun ByteString
+  | DBQueryResult ByteString
   | ConfigReadErrorObs SQL.UsageError
   | ConfigInvalidObs Text
   | ConfigSucceededObs
@@ -112,6 +114,8 @@ observationMessage = \case
     "Received a schema cache reload message on the " <> show channel <> " channel"
   DBListenerGotConfigMsg channel ->
     "Received a config reload message on the " <> show channel <> " channel"
+  DBQueryRun sql ->
+    T.decodeUtf8 sql
   ConfigReadErrorObs usageErr ->
     "Failed to query database settings for the config parameters." <> jsonMessage usageErr
   QueryRoleSettingsErrorObs usageErr ->

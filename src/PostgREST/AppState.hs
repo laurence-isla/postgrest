@@ -27,6 +27,7 @@ module PostgREST.AppState
   , readInDbConfig
   , schemaCacheLoader
   , getObserver
+  , getLoggerState
   , isLoaded
   , isPending
   ) where
@@ -76,6 +77,7 @@ import PostgREST.Unix                    (createAndBindDomainSocket)
 
 import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
 import Data.String            (IsString (..))
+import PostgREST.Logger       (LoggerState)
 import Protolude
 
 data AuthResult = AuthResult
@@ -356,6 +358,9 @@ putSCacheStatus = atomicWriteIORef . stateSCacheStatus
 
 getObserver :: AppState -> ObservationHandler
 getObserver = stateObserver
+
+getLoggerState :: AppState -> LoggerState
+getLoggerState = stateLogger
 
 -- | Try to load the schema cache and retry if it fails.
 --
