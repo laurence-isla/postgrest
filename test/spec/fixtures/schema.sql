@@ -3726,11 +3726,11 @@ create or replace function test.sleep(seconds double precision default 5) return
 $$ language sql;
 
 -- https://github.com/PostgREST/postgrest/issues/3256
-create view test.infinite_recursion as
-select * from test.projects;
+create view infinite_recursion as
+select * from projects;
 
-create or replace view test.infinite_recursion as
-select * from test.infinite_recursion;
+create or replace view infinite_recursion as
+select * from infinite_recursion;
 
 
 create or replace function temp_file_limit()

@@ -10,6 +10,27 @@
     tableSchema: public
     tableUpdatable: true
 
+- - qiName: infinite_recursion
+    qiSchema: public
+  - tableColumns:
+      id:
+        colDefault: null
+        colDescription: null
+        colEnum: []
+        colMaxLen: null
+        colName: id
+        colNominalType: integer
+        colNullable: true
+        colType: integer
+    tableDeletable: false
+    tableDescription: null
+    tableInsertable: false
+    tableIsView: true
+    tableName: infinite_recursion
+    tablePKCols: []
+    tableSchema: public
+    tableUpdatable: false
+
 - - qiName: cats
     qiSchema: public
   - tableColumns:
@@ -43,7 +64,16 @@
 
 - - qiName: projects
     qiSchema: public
-  - tableColumns: {}
+  - tableColumns:
+      id:
+        colDefault: null
+        colDescription: null
+        colEnum: []
+        colMaxLen: null
+        colName: id
+        colNominalType: integer
+        colNullable: true
+        colType: integer
     tableDeletable: true
     tableDescription: null
     tableInsertable: true

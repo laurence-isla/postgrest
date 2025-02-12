@@ -17,7 +17,7 @@ module PostgREST.App
 
 
 import Control.Monad.Except     (liftEither)
-import Data.Either.Combinators  (mapLeft)
+import Data.Either.Combinators  (mapLeft, whenLeft)
 import Data.Maybe               (fromJust)
 import Data.String              (IsString (..))
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
@@ -148,16 +148,23 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
   (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
   let query = Query.query conf authResult apiReq plan sCache pgVer
+      shouldLogSQL httpStatus = configLogQuery && Query.getSQLQuery query /= mempty && Logger.logAccordingToLogLevel configLogLevel httpStatus
+      logSQL = lift $ AppState.getObserver appState (DBQueryRun $ Query.getSQLQuery query)
 
   (queryTime, queryResult) <- withTiming $ do
     case query of
       Query.NoDbQuery r -> pure r
       Query.DbQuery{..} -> do
         dbRes <- lift $ AppState.usePool appState (dqTransaction dqIsoLevel dqTxMode $ runExceptT dqDbHandler)
-        err <- liftEither . mapLeft Error.PgErr . mapLeft (Error.PgError (Just authRole /= configDbAnonRole)) $ dbRes
-        liftEither err
+        let eitherResp = mapLeft Error.PgErr . mapLeft (Error.PgError (Just authRole /= configDbAnonRole)) $ dbRes
+        -- We log the SQL here only on errors, because the response process can change the HTTP status later.
+        whenLeft eitherResp $ \e -> when (shouldLogSQL $ Error.status e) logSQL
+        liftEither eitherResp >>= liftEither
 
-  (respTime, resp) <- withTiming $ liftEither $ Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
+  (respTime, resp) <- withTiming $ do
+    let response = Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
+    when (shouldLogSQL $ either Error.status Response.pgrstStatus response) logSQL
+    liftEither response
 
   return $ toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp
 

@@ -39,8 +39,8 @@ GRANT USAGE ON SCHEMA test TO postgrest_test_anonymous;
 CREATE TABLE authors_only ();
 GRANT SELECT ON authors_only TO postgrest_test_author;
 
-CREATE TABLE projects AS SELECT FROM generate_series(1,5);
-GRANT SELECT ON projects TO postgrest_test_anonymous, postgrest_test_w_superuser_settings;
+CREATE TABLE projects AS SELECT generate_series(1,5) id;
+GRANT ALL ON projects TO postgrest_test_anonymous, postgrest_test_w_superuser_settings;
 
 create function get_guc_value(name text) returns text as $$
   select nullif(current_setting(name), '')::text;
@@ -243,3 +243,13 @@ end $_$ volatile security definer language plpgsql ;
 create function test.get_current_schema() returns text as $$
   select current_schema()::text;
 $$ language sql;
+
+create or replace function root() returns json as $_$
+  select '{"swagger": "2.0"}'::json;
+$_$ language sql;
+
+create view infinite_recursion as
+select * from projects;
+
+create or replace view infinite_recursion as
+select * from infinite_recursion;

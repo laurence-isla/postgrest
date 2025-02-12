@@ -980,6 +980,94 @@ def test_log_level(level, defaultenv):
             assert len(output) == 7
 
 
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
+def test_log_query(level, defaultenv):
+    "log_query=true should log the SQL query according to the log_level"
+
+    env = {
+        **defaultenv,
+        "PGRST_LOG_LEVEL": level,
+        "PGRST_LOG_QUERY": "true",
+        # The root path can only log SQL when a function is set in db-root-spec
+        "PGRST_DB_ROOT_SPEC": "root",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/")
+        assert response.status_code == 200
+
+        response = postgrest.session.get("/unknown")
+        assert response.status_code == 404
+
+        response = postgrest.session.get("/infinite_recursion")
+        assert response.status_code == 500
+
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 200
+
+        response = postgrest.session.post("/projects", data="[]")
+        assert response.status_code == 201
+
+        response = postgrest.session.patch("/projects", data="[]")
+        assert response.status_code == 204
+
+        response = postgrest.session.delete("/projects?id=eq.0")
+        assert response.status_code == 204
+
+        response = postgrest.session.post("/rpc/hello")
+        assert response.status_code == 200
+
+        output = postgrest.read_stdout(nlines=17)
+
+        if level == "crit":
+            assert len(output) == 0
+        elif level == "error":
+            assert re.match(
+                r'.+: WITH pgrst_source AS.+SELECT "public"."infinite_recursion"\.\* FROM "public"."infinite_recursion".+_postgrest_t',
+                output[1],
+            )
+            assert len(output) == 3
+        elif level == "warn":
+            assert re.match(
+                r'.+: WITH pgrst_source AS.+SELECT "public"."unknown".* FROM "public"."unknown".+_postgrest_t',
+                output[0],
+            )
+            assert re.match(
+                r'.+: WITH pgrst_source AS.+SELECT "public"."infinite_recursion"\.\* FROM "public"."infinite_recursion".+_postgrest_t',
+                output[3],
+            )
+            assert len(output) == 5
+
+
+#         elif level == "info":
+#             assert re.match(
+#               r'.+: WITH pgrst_source AS \(SELECT pgrst_call.pgrst_scalar FROM \(SELECT "public"."root"\(\) pgrst_scalar\) pgrst_call\).+',
+#               output[0],
+#             )
+#            assert len(output) == 18
+#         elif level == "debug":
+#             assert re.match(
+#                 r'- - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
+#                 output[0],
+#             )
+#             assert re.match(
+#                 r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 - "" "python-requests/.+"',
+#                 output[1],
+#             )
+#             assert re.match(
+#                 r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
+#                 output[2],
+#             )
+#             assert "Connection" and "is available" in output[3]
+#             assert "Connection" and "is available" in output[4]
+#             assert "Connection" and "is used" in output[5]
+#             assert "Connection" and "is used" in output[6]
+#             assert len(output) == 7
+
+# Tests :
+# RPC
+
+
 def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
     "no pool connection should be consumed for failing on invalid http logic"
 
